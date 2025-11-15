@@ -1,10 +1,12 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { GraduationCap, Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { GraduationCap, Mail, Lock, ArrowRight, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -12,16 +14,41 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    // Check if user is already logged in
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate("/dashboard");
+      }
+    };
+    checkUser();
+  }, [navigate]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate login
-    setTimeout(() => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      if (data.session) {
+        toast.success("Welcome back! 🎉");
+        navigate("/dashboard");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred during login");
+    } finally {
       setIsLoading(false);
-      toast.success("Welcome back! 🎉");
-      navigate("/dashboard");
-    }, 1000);
+    }
   };
 
   return (
@@ -99,10 +126,11 @@ const Login = () => {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Email</label>
+              <Label htmlFor="email" className="text-foreground">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
+                  id="email"
                   type="email"
                   placeholder="student@example.com"
                   value={email}
@@ -114,10 +142,11 @@ const Login = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Password</label>
+              <Label htmlFor="password" className="text-foreground">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
+                  id="password"
                   type="password"
                   placeholder="••••••••"
                   value={password}
@@ -133,8 +162,17 @@ const Login = () => {
               className="w-full h-12 bg-gradient-primary border-0 font-semibold text-lg hover:opacity-90"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign In"}
-              <ArrowRight className="ml-2 w-5 h-5" />
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Sign In
+                  <ArrowRight className="ml-2 w-5 h-5" />
+                </>
+              )}
             </Button>
           </form>
 
@@ -147,9 +185,9 @@ const Login = () => {
           <div className="mt-6 pt-6 border-t border-border text-center">
             <p className="text-sm text-muted-foreground">
               Don't have an account?{" "}
-              <button className="text-primary hover:text-primary-dark font-semibold transition-colors">
+              <Link to="/signup" className="text-primary hover:text-primary-dark font-semibold transition-colors">
                 Sign up for free
-              </button>
+              </Link>
             </p>
           </div>
         </Card>

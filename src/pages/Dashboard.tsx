@@ -1,15 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ProgressRing } from "@/components/ProgressRing";
 import { StatCard } from "@/components/StatCard";
 import { StudyPlanCard } from "@/components/StudyPlanCard";
 import { WeakAreasCard } from "@/components/WeakAreasCard";
 import { PerformanceChart } from "@/components/PerformanceChart";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, BookOpen, Target, Clock, Bell, Settings, LogOut } from "lucide-react";
+import { GraduationCap, BookOpen, Target, Clock, Bell, Settings, LogOut, User as UserIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import type { User } from "@supabase/supabase-js";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [tasks, setTasks] = useState([
     { id: "1", title: "Complete Data Structures - Arrays", duration: 45, completed: true, type: "study" as const },
     { id: "2", title: "Revise Object-Oriented Programming", duration: 30, completed: true, type: "revision" as const },
@@ -17,6 +23,48 @@ const Dashboard = () => {
     { id: "4", title: "Study Database Normalization", duration: 35, completed: false, type: "study" as const },
     { id: "5", title: "Complete Algorithm Quiz", duration: 25, completed: false, type: "practice" as const },
   ]);
+
+  useEffect(() => {
+    // Check authentication and fetch user profile
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate("/login");
+        return;
+      }
+
+      setUser(session.user);
+
+      // Fetch profile
+      const { data: profileData, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error fetching profile:", error);
+      } else if (profileData) {
+        setProfile(profileData);
+      }
+
+      setIsLoading(false);
+    };
+
+    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        navigate("/login");
+      } else {
+        setUser(session.user);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const performanceData = [
     { day: "Mon", timeSpent: 120, score: 75 },
@@ -40,6 +88,23 @@ const Dashboard = () => {
     ));
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success("Logged out successfully");
+    navigate("/login");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-gradient-primary animate-pulse mx-auto" />
+          <p className="text-muted-foreground">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -54,7 +119,9 @@ const Dashboard = () => {
                 <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                   StudySync AI
                 </h1>
-                <p className="text-xs text-muted-foreground">Welcome back, Alex!</p>
+                <p className="text-xs text-muted-foreground">
+                  Welcome back, {profile?.full_name || user?.email?.split('@')[0] || 'Student'}!
+                </p>
               </div>
             </div>
 
@@ -66,10 +133,17 @@ const Dashboard = () => {
               <Button variant="ghost" size="icon">
                 <Settings className="w-5 h-5" />
               </Button>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent/30">
+                <UserIcon className="w-4 h-4 text-accent-foreground" />
+                <span className="text-sm font-medium text-accent-foreground">
+                  {profile?.full_name || user?.email?.split('@')[0]}
+                </span>
+              </div>
               <Button 
                 variant="ghost" 
                 size="icon"
-                onClick={() => navigate("/")}
+                onClick={handleLogout}
+                title="Logout"
               >
                 <LogOut className="w-5 h-5" />
               </Button>

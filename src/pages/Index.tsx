@@ -28,7 +28,7 @@ const Index = () => {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
             <Button
-              onClick={() => navigate("/login")}
+              onClick={() => navigate("/signup")}
               className="h-14 px-8 bg-gradient-primary border-0 font-semibold text-lg hover:opacity-90"
             >
               Get Started

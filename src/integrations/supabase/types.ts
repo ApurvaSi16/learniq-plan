@@ -38,6 +38,72 @@ export type Database = {
         }
         Relationships: []
       }
+      progress: {
+        Row: {
+          attempts: number
+          created_at: string
+          day: string
+          id: string
+          score: number
+          time_spent: number
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          day?: string
+          id?: string
+          score: number
+          time_spent?: number
+          topic: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          day?: string
+          id?: string
+          score?: number
+          time_spent?: number
+          topic?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          completed: boolean
+          created_at: string
+          duration: number
+          id: string
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          duration: number
+          id?: string
+          title: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          duration?: number
+          id?: string
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

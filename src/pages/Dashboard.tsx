@@ -16,13 +16,8 @@ const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [tasks, setTasks] = useState([
-    { id: "1", title: "Complete Data Structures - Arrays", duration: 45, completed: true, type: "study" as const },
-    { id: "2", title: "Revise Object-Oriented Programming", duration: 30, completed: true, type: "revision" as const },
-    { id: "3", title: "Practice SQL Queries", duration: 40, completed: false, type: "practice" as const },
-    { id: "4", title: "Study Database Normalization", duration: 35, completed: false, type: "study" as const },
-    { id: "5", title: "Complete Algorithm Quiz", duration: 25, completed: false, type: "practice" as const },
-  ]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     // Check authentication and fetch user profile
@@ -49,6 +44,9 @@ const Dashboard = () => {
         setProfile(profileData);
       }
 
+      // Fetch tasks
+      await fetchTasks(session.user.id);
+
       setIsLoading(false);
     };
 
@@ -66,6 +64,22 @@ const Dashboard = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  const fetchTasks = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (error) {
+      console.error("Error fetching tasks:", error);
+      toast.error("Failed to load tasks");
+    } else {
+      setTasks(data || []);
+    }
+  };
+
   const performanceData = [
     { day: "Mon", timeSpent: 120, score: 75 },
     { day: "Tue", timeSpent: 90, score: 82 },
@@ -82,10 +96,59 @@ const Dashboard = () => {
     { topic: "Network Security", score: 62, attempts: 6 },
   ];
 
-  const handleTaskComplete = (id: string) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
-    ));
+  const handleTaskComplete = async (id: string) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+
+    const { error } = await supabase
+      .from("tasks")
+      .update({ completed: !task.completed })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error updating task:", error);
+      toast.error("Failed to update task");
+    } else {
+      setTasks(tasks.map(t => 
+        t.id === id ? { ...t, completed: !t.completed } : t
+      ));
+      toast.success(task.completed ? "Task marked as incomplete" : "Task completed!");
+    }
+  };
+
+  const handleGenerateNewPlan = async () => {
+    if (!user) return;
+    
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-study-plan', {
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        }
+      });
+
+      if (error) {
+        console.error('Error generating plan:', error);
+        if (error.message?.includes('429')) {
+          toast.error('Rate limit exceeded. Please try again later.');
+        } else if (error.message?.includes('402')) {
+          toast.error('AI credits depleted. Please add credits to continue.');
+        } else {
+          toast.error('Failed to generate study plan');
+        }
+        return;
+      }
+
+      if (data?.tasks) {
+        await fetchTasks(user.id);
+        toast.success('New study plan generated successfully!');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -188,7 +251,12 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
-            <StudyPlanCard tasks={tasks} onTaskComplete={handleTaskComplete} />
+            <StudyPlanCard 
+              tasks={tasks} 
+              onTaskComplete={handleTaskComplete}
+              onGenerateNewPlan={handleGenerateNewPlan}
+              isGenerating={isGenerating}
+            />
             <PerformanceChart data={performanceData} />
           </div>
 

@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, CheckCircle2, Circle } from "lucide-react";
+import { Clock, CheckCircle2, Circle, Sparkles, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -15,9 +15,11 @@ interface StudyTask {
 interface StudyPlanCardProps {
   tasks: StudyTask[];
   onTaskComplete: (id: string) => void;
+  onGenerateNewPlan: () => void;
+  isGenerating: boolean;
 }
 
-export const StudyPlanCard = ({ tasks, onTaskComplete }: StudyPlanCardProps) => {
+export const StudyPlanCard = ({ tasks, onTaskComplete, onGenerateNewPlan, isGenerating }: StudyPlanCardProps) => {
   const completedCount = tasks.filter(t => t.completed).length;
   const totalDuration = tasks.reduce((acc, task) => acc + task.duration, 0);
 
@@ -78,8 +80,22 @@ export const StudyPlanCard = ({ tasks, onTaskComplete }: StudyPlanCardProps) => 
         ))}
       </div>
 
-      <Button className="w-full mt-6 bg-gradient-primary border-0 font-semibold hover:opacity-90">
-        Generate New Plan with AI
+      <Button 
+        className="w-full mt-6 bg-gradient-primary border-0 font-semibold hover:opacity-90"
+        onClick={onGenerateNewPlan}
+        disabled={isGenerating}
+      >
+        {isGenerating ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            Generating AI Plan...
+          </>
+        ) : (
+          <>
+            <Sparkles className="w-4 h-4 mr-2" />
+            Generate New Plan with AI
+          </>
+        )}
       </Button>
     </Card>
   );
